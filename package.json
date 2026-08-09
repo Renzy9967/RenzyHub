@@ -1,6 +1,6 @@
 {
   "name": "renzyhub-key-system",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -8,7 +8,8 @@
     "start": "next start",
     "db:migrate": "psql \"$DATABASE_URL\" -f db/schema.sql",
     "db:seed": "tsx scripts/seed.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "db:migrate-provider": "psql \"$DATABASE_URL\" -f db/migrate-provider.sql"
   },
   "dependencies": {
     "bcryptjs": "^3.0.2",
