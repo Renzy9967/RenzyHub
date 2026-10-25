@@ -34,8 +34,23 @@ export default async function Callback({ searchParams }: Props) {
 
   const verification = await verifyLinkvertiseHash(hash);
   if (!verification.ok) {
-    return <main className="container"><div className="card" style={{marginTop:80}}><h2>Verification failed</h2><p className="muted">Linkvertise could not confirm this completion. Start a new session and try again.</p></div></main>;
-  }
+  console.error("Linkvertise verification failed:", {
+    status: verification.status,
+    body: verification.body,
+  });
+
+  return (
+    <main className="container">
+      <div className="card" style={{ marginTop: 80 }}>
+        <h2>Verification failed</h2>
+        <p className="muted">
+          Linkvertise could not confirm this completion.
+          Check the server logs for diagnostic details.
+        </p>
+      </div>
+    </main>
+  );
+
 
   await query(
     `INSERT INTO checkpoint_completions(session_id,checkpoint_id) VALUES($1,$2)
