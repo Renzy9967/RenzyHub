@@ -41,10 +41,21 @@ export async function POST(req: Request) {
   if (exists.rows[0]) return NextResponse.json({ error: "That position is already used." }, { status: 409 });
 
   const row = await query(
-    `INSERT INTO checkpoints(system_id,position,name,provider,url,enabled)
-     VALUES($1,$2,$3,$4,$5,$6)
-     RETURNING id,system_id,position,name,provider,url,enabled,created_at`,
-    [parsed.data.systemId, position, parsed.data.name, parsed.data.provider, parsed.data.url, parsed.data.enabled]
+   
+  const row = await query(
+    `INSERT INTO checkpoints(system_id,position,name,provider,url,linkvertise_url,enabled)
+     VALUES($1,$2,$3,$4,$5,$6,$7)
+     RETURNING id,system_id,position,name,provider,COALESCE(url,linkvertise_url) AS url,enabled,created_at`,
+    [
+      parsed.data.systemId,
+      position,
+      parsed.data.name,
+      parsed.data.provider,
+      parsed.data.url,
+      parsed.data.provider === "linkvertise" ? parsed.data.url : null,
+      parsed.data.enabled
+    ]
   );
+  
   return NextResponse.json({ checkpoint: row.rows[0] }, { status: 201 });
 }
