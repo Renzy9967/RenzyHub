@@ -39,8 +39,6 @@ export async function POST(req: Request) {
 
   const exists = await query(`SELECT id FROM checkpoints WHERE system_id=$1 AND position=$2`, [parsed.data.systemId, position]);
   if (exists.rows[0]) return NextResponse.json({ error: "That position is already used." }, { status: 409 });
-
-  const row = await query(
    
   const row = await query(
     `INSERT INTO checkpoints(system_id,position,name,provider,url,linkvertise_url,enabled)
