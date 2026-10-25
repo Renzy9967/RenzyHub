@@ -29,6 +29,36 @@ export default function KeyFlow() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [copyMessage, setCopyMessage] = useState("");
+  
+const [expiresAt, setExpiresAt] = useState("");
+const [now, setNow] = useState(Date.now());
+
+useEffect(() => {
+  const timer = window.setInterval(() => setNow(Date.now()), 1000);
+  return () => window.clearInterval(timer);
+}, []);
+
+const expiryTime = expiresAt ? new Date(expiresAt).getTime() : NaN;
+const remainingSeconds = Number.isFinite(expiryTime)
+  ? Math.max(0, Math.floor((expiryTime - now) / 1000))
+  : null;
+
+const isExpired = remainingSeconds !== null && remainingSeconds <= 0;
+const isExpiringSoon =
+  remainingSeconds !== null &&
+  remainingSeconds > 0 &&
+  remainingSeconds <= 3600;
+
+const countdown = remainingSeconds === null
+  ? "Checking expiry…"
+  : isExpired
+    ? "Key expired"
+    : [
+        Math.floor(remainingSeconds / 3600).toString().padStart(2, "0"),
+        Math.floor((remainingSeconds % 3600) / 60).toString().padStart(2, "0"),
+        (remainingSeconds % 60).toString().padStart(2, "0"),
+      ].join(":");
+
 
   async function start() {
     setLoading(true);
@@ -54,11 +84,16 @@ export default function KeyFlow() {
       }
 
       // Browser ini sudah memiliki key aktif.
-      if (typeof data.key === "string" && data.key.length > 0) {
-        setKey(data.key);
-        setExistingKey(data.existing === true);
-        return;
-      }
+      
+if (typeof data.key === "string" && data.key.length > 0) {
+  setKey(data.key);
+  setExistingKey(data.existing === true);
+  setExpiresAt(
+    typeof data.expiresAt === "string" ? data.expiresAt : ""
+  );
+  return;
+}
+
 
       if (data.sessionId && data.checkpoint) {
         setState(data as StartResponse);
@@ -90,11 +125,16 @@ export default function KeyFlow() {
         return;
       }
 
-      if (typeof data.key === "string" && data.key.length > 0) {
-        setKey(data.key);
-        setExistingKey(false);
-        return;
-      }
+     
+if (typeof data.key === "string" && data.key.length > 0) {
+  setKey(data.key);
+  setExistingKey(false);
+  setExpiresAt(
+    typeof data.expiresAt === "string" ? data.expiresAt : ""
+  );
+  return;
+}
+
 
       if (data.checkpoint) {
         setState({ sessionId, checkpoint: data.checkpoint });
@@ -240,11 +280,12 @@ if (loading && !state) {
       state={state}
       onComplete={(next) => {
         if ("key" in next) {
-          setKey(next.key);
-          setExistingKey(false);
-        } else {
-          setState(next);
-        }
+  setKey(next.key);
+  setExistingKey(false);
+  setExpiresAt(next.expiresAt ?? "");
+} else {
+  setState(next);
+}
       }}
     />
   );
@@ -277,10 +318,13 @@ function CheckpointWatcher({
         return;
       }
 
-      if (typeof data.key === "string" && data.key.length > 0) {
-        onComplete({ key: data.key });
-        return;
-      }
+     if (typeof data.key === "string" && data.key.length > 0) {
+  onComplete({
+    key: data.key,
+    expiresAt: data.expiresAt,
+  });
+  return;
+}
 
       if (data.checkpoint) {
         onComplete({
