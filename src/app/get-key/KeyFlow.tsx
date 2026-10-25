@@ -128,38 +128,69 @@ export default function KeyFlow() {
     }
   }, []);
 
-  if (key) {
-    return (
-      <section
-        className="card center"
-        style={{ maxWidth: 700, margin: "50px auto" }}
-      >
-        <p className="muted">Your RenzyHub key</p>
-        <h1>{existingKey ? "Welcome back!" : "Key generated"}</h1>
-        <p className="muted">
-          {existingKey
-            ? "Your existing key is still active. You do not need to repeat the checkpoints."
-            : "Your key is ready to use."}
-        </p>
+  
+if (key) {
+  return (
+    <section
+      className="card rh-success"
+      style={{ maxWidth: 620, margin: "50px auto" }}
+    >
+      <div className="rh-success-glow" />
 
-        <div className="code">{key}</div>
-
-        <div
-          className="row"
-          style={{ justifyContent: "center", marginTop: 18 }}
+      <div className="rh-success-icon" aria-label="Success">
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
         >
-          <button className="btn primary" onClick={() => void copyKey()}>
-            Copy key
-          </button>
-          <a className="btn" href="/">
-            Done
-          </a>
+          <path d="m5 12 4 4L19 6" />
+        </svg>
+      </div>
+
+      <p className="rh-eyebrow">
+        {existingKey ? "Welcome back" : "Verification complete"}
+      </p>
+
+      <h1>{existingKey ? "Your key is ready" : "You're all set!"}</h1>
+
+      <p className="muted">
+        {existingKey
+          ? "Your existing key is still active. No need to repeat the checkpoints."
+          : "Your checkpoint process is complete. Your key is ready to use."}
+      </p>
+
+      <div className="rh-key-box">
+        <div className="rh-key-label">
+          <span>YOUR RENZYHUB KEY</span>
+          <span className="badge success">ACTIVE</span>
         </div>
 
-        {copyMessage && <p className="muted">{copyMessage}</p>}
-      </section>
-    );
-  }
+        <code className="rh-key-value">{key}</code>
+      </div>
+
+      <div className="rh-success-actions">
+        <button
+          className="btn primary"
+          onClick={() => void copyKey()}
+        >
+          Copy key
+        </button>
+
+        <a className="btn" href="/">
+          Back to home
+        </a>
+      </div>
+
+      <p className="rh-copy-message" aria-live="polite">
+        {copyMessage || "Keep your key safe."}
+      </p>
+    </section>
+  );
+}
+
 
   if (loading && !state) {
     return (
