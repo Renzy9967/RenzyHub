@@ -192,16 +192,31 @@ if (key) {
 }
 
 
-  if (loading && !state) {
-    return (
-      <section
-        className="card center"
-        style={{ maxWidth: 700, margin: "50px auto" }}
-      >
-        Starting checkpoint…
-      </section>
-    );
-  }
+  
+if (loading && !state) {
+  return (
+    <section
+      className="card center"
+      style={{ maxWidth: 620, margin: "50px auto", padding: "48px 24px" }}
+      aria-live="polite"
+      aria-busy="true"
+    >
+      <div className="rh-loader" aria-hidden="true">
+        <div className="rh-loader-core" />
+      </div>
+
+      <p className="badge">RENZYHUB SECURITY</p>
+
+      <h2 className="rh-loading-title">
+        Preparing your session<span className="rh-loading-dots" />
+      </h2>
+
+      <p className="muted">
+        Checking your browser and looking for an active key.
+      </p>
+    </section>
+  );
+}
 
   if (error && !state) {
     return (
