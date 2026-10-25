@@ -20,6 +20,8 @@ export async function verifyLinkvertiseHash(hash: string) {
     return { ok: false, status: response.status, body: text };
   }
 
-  // Linkvertise's documented endpoint is used as the source of truth.
-  return { ok: true, status: response.status, body: text };
+  // Linkvertise may return HTTP 200 with the literal body FALSE when the hash
+  // is unknown/expired/already used. Only the documented TRUE response counts.
+  const verified = text.trim().toUpperCase() === "TRUE";
+  return { ok: verified, status: response.status, body: text };
 }

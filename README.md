@@ -1,158 +1,77 @@
-# RenzyHub Key System
+# RenzyHub Key System v2
 
-Full-stack key system for RenzyHub:
+Provider-based key system for RenzyHub.
 
-- Next.js 16 App Router
-- PostgreSQL
-- Server-side key generation and validation
-- Multi-checkpoint flow
-- Linkvertise Anti-Bypass verification
-- Admin dashboard
-- Duration / expiration
-- Key revoke
-- REST API for RenzyHub library
+## What changed in v2
 
-## Important Linkvertise setup
+- Checkpoints support `linkvertise` and `lootlabs`.
+- Admin can create, edit, enable/disable, reorder, and delete checkpoints.
+- Checkpoint flow is sequential by `position`.
+- Linkvertise uses the Anti-Bypass verification endpoint.
+- LootLabs uses the documented server-to-server postback model.
+- Key duration remains configurable.
+- Existing Linkvertise-only databases can be upgraded with `db/migrate-provider.sql`.
 
-This project uses Linkvertise's official Anti-Bypass API. The Linkvertise documentation states that the anti-bypass flow works with Target-Links, adds a `hash` query parameter after the visitor completes the ad-step, and the hash is only stored by Linkvertise for about 10 seconds. Your backend must therefore verify it immediately.
+LootLabs documents postback as a way to confirm completed tasks. The `puid` value sent in the LootLabs link is returned as `click_id` to your postback route, which this project validates against the current session/checkpoint. See the official LootLabs postback documentation for panel setup.
 
-Official docs:
-- https://publisher.linkvertise.com/documentations/Anti_Bypass_Documentation.pdf
+## Existing database upgrade
 
-For each checkpoint, create a Linkvertise Target-Link whose target points to:
+If you already ran the original v1 schema (as with your current Neon database):
 
-`https://YOUR-DOMAIN/checkpoint/callback?session=SESSION_ID&checkpoint=CHECKPOINT_ID`
+1. Open Neon SQL Editor.
+2. Create a new query.
+3. Paste the entire contents of `db/migrate-provider.sql`.
+4. Run it once.
+5. Do not delete the existing `key_systems` or `checkpoints` rows.
 
-Do not put the Linkvertise API token in client-side code.
+The migration copies existing `linkvertise_url` values into the new `url` field and marks those checkpoints as `linkvertise`.
 
-## Local setup
+## Fresh database
 
-Requirements:
-- Node.js 20.9+
-- PostgreSQL
+For a new database, run `db/schema.sql`.
 
-1. Copy `.env.example` to `.env`.
-2. Create the database.
-3. Install dependencies:
+## Environment variables
 
-```bash
-npm install
-```
+Set these in Vercel:
 
-4. Apply schema:
-
-```bash
-npm run db:migrate
-```
-
-5. Seed admin:
-
-```bash
-npm run db:seed
-```
-
-6. Start:
-
-```bash
-npm run dev
-```
-
-Open http://localhost:3000
-
-## Production
-
-Use HTTPS. Set:
-- `APP_URL`
 - `DATABASE_URL`
+- `APP_URL`
 - `SESSION_SECRET`
 - `LINKVERTISE_ANTI_BYPASS_TOKEN`
-- strong admin password
+- `ADMIN_USERNAME`
+- `ADMIN_PASSWORD`
+- `DEFAULT_KEY_DURATION`
+- `LOOTLABS_API_TOKEN` (optional for future automatic link creation)
 
-Run:
+Redeploy after changing environment variables.
 
-```bash
-npm run build
-npm start
-```
+## LootLabs setup
 
-## API
+The postback route is:
 
-### Start key flow
+`https://YOUR_DOMAIN/api/lootlabs/postback`
 
-`POST /api/checkpoints/start`
+In your LootLabs panel, enable postback and configure that URL. LootLabs sends `click_id`, `ip`, and `unique_id`. The application uses `click_id` to identify the session/checkpoint and verifies the IP when both sides provide one.
 
-Body:
+When an admin creates a LootLabs checkpoint, the app appends:
 
-```json
-{ "systemId": "YOUR_SYSTEM_UUID" }
-```
+`puid=<signed-session-value>`
 
-Response contains a session and the first Linkvertise URL.
+to the configured LootLabs URL.
 
-### Verify checkpoint
+## Admin
 
-The browser normally reaches:
+Open `/admin` and log in using the admin credentials configured/seeded in the database.
 
-`GET /checkpoint/callback?session=...&checkpoint=...&hash=...`
+The checkpoint editor supports:
 
-The server verifies the hash with Linkvertise and marks the checkpoint complete.
+- Provider: Linkvertise / LootLabs
+- Position
+- Name
+- URL
+- Enabled/disabled
+- Create/edit/delete
 
-### Validate key from RenzyHub
+## Important
 
-`POST /api/keys/validate`
-
-```json
-{
-  "key": "RENZY-ABCD-EFGH-IJKL"
-}
-```
-
-Response:
-
-```json
-{
-  "valid": true,
-  "expiresAt": "2026-08-16T00:00:00.000Z",
-  "remainingSeconds": 604800
-}
-```
-
-### Admin
-
-`POST /api/admin/login`
-
-```json
-{
-  "username": "admin",
-  "password": "..."
-}
-```
-
-`GET /api/admin/keys`
-
-`POST /api/admin/keys`
-
-```json
-{
-  "systemId": "YOUR_SYSTEM_UUID",
-  "durationSeconds": 86400
-}
-```
-
-`POST /api/admin/keys/revoke`
-
-```json
-{
-  "id": "KEY_UUID"
-}
-```
-
-## Security notes
-
-- Raw keys are never stored in PostgreSQL; only an HMAC digest is stored.
-- The admin session is an HTTP-only, same-site cookie.
-- Linkvertise verification happens server-side.
-- The client cannot mark a checkpoint as complete by itself.
-- Rate limiting is intentionally kept simple in this starter; put the app behind a reverse proxy/WAF and add Redis-backed rate limiting for a public deployment.
-- If you use this for a public library, consider binding keys to a device/user identifier only if that identifier is privacy-safe and necessary.
-
+Never commit `.env` or real provider/database credentials to GitHub.

@@ -2,9 +2,32 @@ import { NextResponse } from "next/server";
 import { query } from "@/lib/db";
 import { simpleRateLimit } from "@/lib/rate-limit";
 import { z } from "zod";
+import crypto from "node:crypto";
+import { signCheckpointSession } from "@/lib/security";
+
+function getIp(req: Request) {
+  return req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+}
+
+function buildCheckpointUrl(base: string, sessionId: string, checkpointId: string, provider: string) {
+  const url = new URL(base);
+  // Linkvertise returns to the fixed callback URL configured in the publisher
+  // dashboard. Session/checkpoint identity is carried in a signed HttpOnly cookie.
+  if (provider === "linkvertise") return url.toString();
+  url.searchParams.set("session", sessionId);
+  url.searchParams.set("checkpoint", checkpointId);
+  if (provider === "lootlabs") {
+    // LootLabs postback returns this value as click_id.
+    const puid = crypto.createHmac("sha256", process.env.SESSION_SECRET!)
+      .update(`${sessionId}:${checkpointId}`)
+      .digest("hex");
+    url.searchParams.set("puid", puid);
+  }
+  return url.toString();
+}
 
 export async function POST(req: Request) {
-  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+  const ip = getIp(req);
   const rl = await simpleRateLimit(`checkpoint-start:${ip}`, 30, 60);
   if (!rl.allowed) return NextResponse.json({ error: "Too many requests." }, { status: 429 });
 
@@ -19,18 +42,20 @@ export async function POST(req: Request) {
   const systemId = system.rows[0]?.id;
   if (!systemId) return NextResponse.json({ error: "No active key system." }, { status: 404 });
 
-  const cp = await query<{id:string;name:string;position:number;linkvertise_url:string}>(
-    `SELECT id, name, position, linkvertise_url
-     FROM checkpoints WHERE system_id=$1 AND enabled=TRUE ORDER BY position LIMIT 1`,
+  const cp = await query<{id:string;name:string;position:number;provider:string;url:string}>(
+    `SELECT id, name, position, provider, COALESCE(url, linkvertise_url) AS url
+     FROM checkpoints
+     WHERE system_id=$1 AND enabled=TRUE
+     ORDER BY position LIMIT 1`,
     [systemId]
   );
   if (!cp.rows[0]) return NextResponse.json({ error: "No checkpoints configured." }, { status: 500 });
 
   const session = await query<{id:string}>(
-    `INSERT INTO checkpoint_sessions(system_id,current_position,expires_at)
-     VALUES ($1,1,now() + interval '15 minutes')
+    `INSERT INTO checkpoint_sessions(system_id,current_position,expires_at,client_ip)
+     VALUES ($1,$2,now() + interval '15 minutes',$3)
      RETURNING id`,
-    [systemId]
+    [systemId, cp.rows[0].position, ip]
   );
 
   const total = await query<{count:string}>(
@@ -38,18 +63,23 @@ export async function POST(req: Request) {
     [systemId]
   );
 
-  const url = new URL(cp.rows[0].linkvertise_url);
-  url.searchParams.set("session", session.rows[0].id);
-  url.searchParams.set("checkpoint", cp.rows[0].id);
-
-  return NextResponse.json({
-    sessionId: session.rows[0].id,
+  const sessionId = session.rows[0].id;
+  const checkpointId = cp.rows[0].id;
+  const checkpointToken = await signCheckpointSession(sessionId, checkpointId);
+  const response = NextResponse.json({
+    sessionId,
     checkpoint: {
-      id: cp.rows[0].id,
+      id: checkpointId,
       name: cp.rows[0].name,
       position: cp.rows[0].position,
       total: Number(total.rows[0].count),
-      url: url.toString(),
+      provider: cp.rows[0].provider,
+      url: buildCheckpointUrl(cp.rows[0].url, sessionId, checkpointId, cp.rows[0].provider),
     }
   });
+  response.cookies.set("renzyhub_checkpoint", checkpointToken, {
+    httpOnly: true, secure: process.env.NODE_ENV === "production",
+    sameSite: "lax", path: "/checkpoint/callback", maxAge: 15 * 60
+  });
+  return response;
 }

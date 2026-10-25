@@ -46,3 +46,22 @@ export function safeEqual(a: string, b: string) {
   const bb = Buffer.from(b);
   return aa.length === bb.length && crypto.timingSafeEqual(aa, bb);
 }
+
+export async function signCheckpointSession(sessionId: string, checkpointId: string) {
+  return new SignJWT({ purpose: "checkpoint", checkpointId })
+    .setProtectedHeader({ alg: "HS256" })
+    .setSubject(sessionId)
+    .setIssuedAt()
+    .setExpirationTime("15m")
+    .sign(sessionSecret());
+}
+
+export async function verifyCheckpointSession(token: string) {
+  try {
+    const { payload } = await jwtVerify(token, sessionSecret());
+    if (payload.purpose !== "checkpoint" || typeof payload.sub !== "string" || typeof payload.checkpointId !== "string") return null;
+    return { sessionId: payload.sub, checkpointId: payload.checkpointId };
+  } catch {
+    return null;
+  }
+}
