@@ -415,3 +415,81 @@ a:focus-visible {
   }
 }
 
+
+/* Key expiration countdown */
+.rh-expiry {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 14px;
+  padding: 16px;
+  border: 1px solid rgba(74, 222, 128, 0.18);
+  border-radius: 14px;
+  background: rgba(34, 197, 94, 0.045);
+  text-align: left;
+  transition: border-color 0.25s, background 0.25s;
+}
+
+.rh-expiry-icon {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  color: #86efac;
+  background: rgba(34, 197, 94, 0.1);
+  font-size: 27px;
+}
+
+.rh-expiry-info {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.rh-expiry-label {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.rh-expiry-info strong {
+  font-family: ui-monospace, monospace;
+  font-size: 23px;
+  letter-spacing: 0.04em;
+  font-variant-numeric: tabular-nums;
+}
+
+.rh-expiry-date {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.rh-expiry[data-warning="true"] {
+  border-color: rgba(251, 191, 36, 0.3);
+  background: rgba(245, 158, 11, 0.055);
+}
+
+.rh-expiry[data-warning="true"] .rh-expiry-icon {
+  color: #fbbf24;
+  background: rgba(245, 158, 11, 0.1);
+}
+
+.rh-expiry[data-warning="true"] .rh-expiry-info strong {
+  color: #fbbf24;
+}
+
+@media (max-width: 420px) {
+  .rh-expiry {
+    gap: 10px;
+    padding: 12px;
+  }
+
+  .rh-expiry-info strong {
+    font-size: 19px;
+  }
+}
+
