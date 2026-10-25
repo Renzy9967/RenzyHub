@@ -50,7 +50,7 @@ export default async function Callback({ searchParams }: Props) {
       </div>
     </main>
   );
-
+}
 
   await query(
     `INSERT INTO checkpoint_completions(session_id,checkpoint_id) VALUES($1,$2)
