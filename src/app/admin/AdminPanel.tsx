@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-type KeyRow = { id:string; key_prefix:string; created_at:string; expires_at:string; revoked_at:string|null };
+type KeyRow = {id: string; key_prefix: string; created_at: string; expires_at: string | null; revoked_at: string | null; };
 type SystemRow = { id:string; name:string };
 type Checkpoint = { id:string; system_id:string; position:number; name:string; provider:"linkvertise"|"lootlabs"; url:string; enabled:boolean };
 
@@ -14,6 +14,7 @@ export default function AdminPanel() {
   const [systems, setSystems] = useState<SystemRow[]>([]);
   const [checkpoints, setCheckpoints] = useState<Checkpoint[]>([]);
   const [duration, setDuration] = useState("86400");
+  const [durationMode, setDurationMode] = useState<"temporary" | "lifetime">("temporary");
   const [systemId, setSystemId] = useState("");
   const [message, setMessage] = useState("");
   const [editing, setEditing] = useState<Checkpoint|null>(null);
@@ -39,9 +40,46 @@ export default function AdminPanel() {
   }
 
   async function generate() {
-    const res=await fetch("/api/admin/keys",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({systemId,durationSeconds:Number(duration)})});
-    const data=await res.json(); setMessage(res.ok?`Generated: ${data.key}`:(data.error??"Generation failed")); load();
+  if (!systemId) {
+    setMessage("Pilih system terlebih dahulu.");
+    return;
   }
+
+  if (
+    durationMode === "temporary" &&
+    (!Number.isSafeInteger(Number(duration)) || Number(duration) <= 0)
+  ) {
+    setMessage("Durasi harus berupa angka positif.");
+    return;
+  }
+
+  setMessage("Generating key...");
+
+  try {
+    const res = await fetch("/api/admin/keys", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        systemId,
+        lifetime: durationMode === "lifetime",
+        durationSeconds:
+          durationMode === "temporary" ? Number(duration) : null,
+      }),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      setMessage(data.error ?? "Generation failed");
+      return;
+    }
+
+    setMessage(`Generated: ${data.key}`);
+    await load();
+  } catch {
+    setMessage("Terjadi kesalahan jaringan saat membuat key.");
+  }
+}
 
   async function revoke(id:string) {
     const res=await fetch("/api/admin/keys/revoke",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({id})});
@@ -85,7 +123,41 @@ export default function AdminPanel() {
     <section className="grid grid2">
       <div className="card"><h2>Generate key</h2>
         <label className="label">System<select className="input" value={systemId} onChange={e=>setSystemId(e.target.value)}>{systems.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}</select></label>
-        <label className="label">Duration (seconds)<input className="input" value={duration} onChange={e=>setDuration(e.target.value)}/></label>
+        <label className="label">
+  Key type
+  <select
+    className="input"
+    value={durationMode}
+    onChange={e =>
+      setDurationMode(e.target.value as "temporary" | "lifetime")
+    }
+  >
+    <option value="temporary">Temporary key</option>
+    <option value="lifetime">Lifetime key</option>
+  </select>
+</label>
+
+{durationMode === "temporary" ? (
+  <label className="label">
+    Duration (seconds)
+    <input
+      className="input"
+      type="number"
+      min="1"
+      step="1"
+      value={duration}
+      onChange={e => setDuration(e.target.value)}
+      required
+    />
+    <span className="muted">
+      86400 seconds = 24 hours
+    </span>
+  </label>
+) : (
+  <p className="muted">
+    Lifetime key doesn't expires, but can be revoke by Admin.
+  </p>
+)}
         <button className="btn primary" onClick={generate}>Generate</button>
         {message&&<p className="muted">{message}</p>}
       </div>
@@ -113,7 +185,21 @@ export default function AdminPanel() {
     </section>
 
     <section className="card" style={{marginTop:20}}><h2>Keys</h2><div style={{overflowX:"auto"}}><table className="table"><thead><tr><th>Prefix</th><th>Created</th><th>Expires</th><th>Status</th><th/></tr></thead><tbody>
-      {keys.map(k=><tr key={k.id}><td>{k.key_prefix}…</td><td>{new Date(k.created_at).toLocaleString()}</td><td>{new Date(k.expires_at).toLocaleString()}</td><td>{k.revoked_at?<span className="badge danger">Revoked</span>:new Date(k.expires_at)<=new Date()?<span className="badge danger">Expired</span>:<span className="badge success">Active</span>}</td><td>{!k.revoked_at&&<button className="btn danger" onClick={()=>revoke(k.id)}>Revoke</button>}</td></tr>)}
+      {keys.map(k=><tr key={k.id}><td>{k.key_prefix}…</td><td>{new Date(k.created_at).toLocaleString()}</td><td>
+  {k.expires_at
+    ? new Date(k.expires_at).toLocaleString()
+    : <span className="badge">LIFETIME</span>}
+</td>
+
+<td>
+  {k.revoked_at ? (
+    <span className="badge danger">Revoked</span>
+  ) : k.expires_at && new Date(k.expires_at).getTime() <= Date.now() ? (
+    <span className="badge danger">Expired</span>
+  ) : (
+    <span className="badge success">Active</span>
+  )}
+</td><td>{!k.revoked_at&&<button className="btn danger" onClick={()=>revoke(k.id)}>Revoke</button>}</td></tr>)}
     </tbody></table></div></section>
   </main>;
 }
