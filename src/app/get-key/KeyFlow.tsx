@@ -211,6 +211,43 @@ if (key) {
         <code className="rh-key-value">{key}</code>
       </div>
 
+      
+<div
+  className="rh-expiry"
+  data-warning={isExpiringSoon || isExpired}
+>
+  <div className="rh-expiry-icon" aria-hidden="true">
+    ◷
+  </div>
+
+  <div className="rh-expiry-info">
+    <span className="rh-expiry-label">
+      {isExpired
+        ? "Validity status"
+        : isExpiringSoon
+          ? "Expiring soon"
+          : "Time remaining"}
+    </span>
+
+    <strong>{countdown}</strong>
+
+    {expiresAt && (
+      <span className="rh-expiry-date">
+        Expires:{" "}
+        {new Date(expiresAt).toLocaleString(undefined, {
+          dateStyle: "medium",
+          timeStyle: "short",
+        })}
+      </span>
+    )}
+  </div>
+
+  <span className="badge" >
+    {isExpired ? "EXPIRED" : isExpiringSoon ? "WARNING" : "ACTIVE"}
+  </span>
+</div>
+
+
       <div className="rh-success-actions">
         <button
           className="btn primary"
