@@ -9,13 +9,10 @@ getgenv().__Airflow = Airflow
 
 local plr = Players.LocalPlayer
 
-local KnitClient = game:GetService("ReplicatedStorage").Packages._Index["sleitnick_knit@1.4.7"].knit.KnitClient
+local Knit = require(game:GetService("ReplicatedStorage").Packages.Knit)
 
-local Knit = require(KnitClient)
--- Knit is already started by the system
---[[local success, message = pcall(function() 
-    return Knit.Start() 
-end)]]
+local success, msg = pcall(function() Knit.Start() end)
+
 local TreeService = Knit.GetService("TreeService")
 local AxeService = Knit.GetService("AxeService")
 local LumberMillService = Knit.GetService("LumberMillService")
